@@ -17,62 +17,71 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:hint="IP"
+            android:textSize="22sp"
             android:layout_weight="2"/>
         <EditText
             android:id="@+id/port"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:hint="Port"
+            android:textSize="22sp"
             android:layout_weight="1"/>
     </LinearLayout>
-    <EditText
-        android:id="@+id/welcomemsg"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:hint="Message" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp">
         <Button
             android:id="@+id/connect"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Connect"
-            android:textSize="24sp"
+            android:textSize="22sp"
+            android:textAllCaps="false"/>
+        <Button
+            android:id="@+id/disconnect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Disconnect"
+            android:textSize="22sp"
             android:textAllCaps="false"/>
         <TextView
             android:id="@+id/state"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Unconnect"
-            android:textSize="24sp"
+            android:textSize="22sp"
             android:textAllCaps="false"
             android:gravity="center"/>
     </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Response :"
-            android:textSize="24sp"
-            android:layout_gravity="bottom"/>
-        <Button
-            android:id="@+id/clear"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp">
+        <EditText
+            android:id="@+id/message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="0"
-            android:text="Disconnect"
-            android:textSize="24sp"
-            android:textAllCaps="false" />
+            android:layout_weight="1"
+            android:hint="Message"
+            android:textSize="22sp"/>
+        <Button
+            android:id="@+id/send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send"
+            android:textSize="22sp"
+            android:textAllCaps="false"/>
     </LinearLayout>
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Response :"
+        android:textSize="24sp"
+        android:layout_gravity="bottom"/>
 
     <TextView
         android:id="@+id/response"

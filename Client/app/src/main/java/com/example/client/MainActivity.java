@@ -1,154 +1,200 @@
 package com.example.client;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
-
-import android.os.AsyncTask;
-import android.os.Bundle;
 import android.app.Activity;
+import android.os.Handler;
+import android.os.Bundle;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
 
 public class MainActivity extends Activity {
 
-    TextView textResponse, state;
-    EditText editTextAddress, editTextPort;
-    Button buttonConnect, buttonClear;
+    private TextView textResponse;
+    private TextView state;
 
-    EditText welcomeMsg;
+    private EditText editTextAddress;
+    private EditText editTextPort;
+    private EditText message;
+
+    private Button buttonConnect;
+    private Button buttonDisconnect;
+    private Button buttonSend;
+
+    Socket mySocket ;
+    Handler myHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        editTextAddress = (EditText) findViewById(R.id.address);
-        editTextPort = (EditText) findViewById(R.id.port);
-        buttonConnect = (Button) findViewById(R.id.connect);
-        buttonClear = (Button) findViewById(R.id.clear);
-        textResponse = (TextView) findViewById(R.id.response);
-        state = (TextView) findViewById(R.id.state);
-        welcomeMsg = (EditText)findViewById(R.id.welcomemsg);
-
-        buttonConnect.setOnClickListener(buttonConnectOnClickListener);
-
-        buttonClear.setOnClickListener(new OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                editTextAddress.setText("");
-                editTextPort.setText("");
-                welcomeMsg.setText("");
-                textResponse.setText("");
-                state.setText("Unconnect");
-            }
-        });
+        Initialize();
+        setListeners();
     }
 
-    OnClickListener buttonConnectOnClickListener = new OnClickListener() {
+    public void Initialize(){
+        editTextAddress = (EditText) findViewById(R.id.address);
+        editTextPort = (EditText) findViewById(R.id.port);
+        message = (EditText)findViewById(R.id.message);
+
+        buttonConnect = (Button) findViewById(R.id.connect);
+        buttonDisconnect = (Button) findViewById(R.id.disconnect);
+        buttonSend = (Button) findViewById(R.id.send);
+
+        textResponse = (TextView) findViewById(R.id.response);
+        state = (TextView) findViewById(R.id.state);
+
+        myHandler = new Handler();
+    }
+
+    public void setListeners(){
+        buttonConnect.setOnClickListener(socketConnect);
+        buttonDisconnect.setOnClickListener(socketDisconnect);
+
+        buttonSend.setOnClickListener(sendData);//補
+    }
+
+    private View.OnClickListener socketConnect = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            Thread threadSocket = new Thread(runSocketConnect);
+            threadSocket.start();
+        }
+    };
+
+    private View.OnClickListener socketDisconnect = new View.OnClickListener(){
 
         @Override
-        public void onClick(View arg0) {
+        public void onClick(View view) {
+            try {
+                mySocket.close();
 
-            String tMsg = welcomeMsg.getText().toString();
-            if(tMsg.equals("")){
-                tMsg = null;
-                Toast.makeText(MainActivity.this, "Please input message.", Toast.LENGTH_SHORT).show();
-            }else{
-                MyClientTask myClientTask = new MyClientTask(editTextAddress
-                        .getText().toString(), Integer.parseInt(editTextPort
-                        .getText().toString()),
-                        tMsg);
-                myClientTask.execute();
-                welcomeMsg.setText("");
-                state.setText("Connect");
+                if (mySocket.isClosed()) {
+                    state.setText("Unconnect.");
+                    myHandler.removeCallbacks(heartbeat);
+                    myHandler.removeCallbacks(runReceiveData);
+                } else {
+                    state.setText("Connect.");
+                }
+            } catch (IOException e) {
+                textResponse.setText("Disconnect error : " + e + ".\n");
             }
         }
     };
 
-    public class MyClientTask extends AsyncTask<Void, Void, Void> {
-
-        String dstAddress;
-        int dstPort;
-        String response = "";
-        String msgToServer;
-
-        MyClientTask(String addr, int port, String msgTo) {
-            dstAddress = addr;
-            dstPort = port;
-            msgToServer = msgTo;
+    private View.OnClickListener sendData = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            Thread myThreadSend = new Thread(runSendData);
+            myThreadSend.start();
         }
+    };
+
+    private  Runnable runSocketConnect = new Runnable() {
 
         @Override
-        protected Void doInBackground(Void... arg0) {
-
-            Socket socket = null;
-            DataOutputStream dataOutputStream = null;
-            DataInputStream dataInputStream = null;
-
+        public void run() {
             try {
-                socket = new Socket(dstAddress, dstPort);
-                dataOutputStream = new DataOutputStream(
-                        socket.getOutputStream());
-                dataInputStream = new DataInputStream(socket.getInputStream());
+                mySocket = new Socket(editTextAddress.getText().toString(), Integer.parseInt(editTextPort.getText().toString()));
 
-                if(msgToServer != null){
-                    dataOutputStream.writeUTF(msgToServer);
+                if (mySocket.isClosed()) {
+                    modifyStatus("Unconnect.");
+                } else {
+                    modifyStatus("Connect.");
+                    clearResponse();
+
+                    myHandler.postDelayed(heartbeat,1000);
+                    Thread myThreadReceive = new Thread(runReceiveData);
+                    myThreadReceive.start();
                 }
-
-                response = dataInputStream.readUTF();
-
-            } catch (UnknownHostException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-                response = "UnknownHostException: " + e.toString();
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-                response = "IOException: " + e.toString();
-            } finally {
-                if (socket != null) {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
+                modifyResponse("Connect error : " + e + ".\n");
 
-                if (dataOutputStream != null) {
-                    try {
-                        dataOutputStream.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-
-                if (dataInputStream != null) {
-                    try {
-                        dataInputStream.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
             }
-            return null;
         }
+    };
 
+    private Runnable runReceiveData = new Runnable() {
         @Override
-        protected void onPostExecute(Void result) {
-            textResponse.setText(response);
-            super.onPostExecute(result);
-        }
+        public void run() {
+            try{
+                InputStream myInputSteam = mySocket.getInputStream();
+                InputStreamReader myInputSteamReader = new InputStreamReader(myInputSteam) ;
+                BufferedReader myBufferedReader = new BufferedReader(myInputSteamReader) ;
 
+                modifyResponse(myBufferedReader.readLine());
+            }catch (IOException e){
+                modifyResponse("Receive data error : "+ e +"\n");
+            }
+        }
+    };
+
+    private Runnable runSendData = new Runnable() {
+        @Override
+        public void run() {
+            try{
+                OutputStream myOutputSteam = mySocket.getOutputStream();
+                OutputStreamWriter myOutputSteamWriter = new OutputStreamWriter(myOutputSteam);
+                BufferedWriter myBufferedWriter = new BufferedWriter(myOutputSteamWriter);
+                myBufferedWriter.write(message.getText().toString() + "\n");
+                myBufferedWriter.flush();
+
+                Thread myThreadReceive = new Thread(runReceiveData);
+                myThreadReceive.start();
+            }catch(IOException e){
+                modifyResponse("Send data error :"+e+"\n");
+            }
+        }
+    };
+
+    private Runnable heartbeat = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                mySocket.sendUrgentData(0xff);
+                myHandler.postDelayed(this,1000) ;
+            } catch (IOException e) {
+                modifyStatus("Unconnect.");
+                modifyResponse("Connect broken.");
+
+                myHandler.removeCallbacks(heartbeat);
+            }
+        }
+    };
+
+    private void modifyResponse(final String text){
+        myHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                textResponse.append(text +"\n");
+            }
+        });
+    }
+
+    private void clearResponse(){
+        myHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                textResponse.setText("");
+            }
+        });
+    }
+
+    private void modifyStatus(final String text){
+        myHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                state.setText(text);
+            }
+        });
     }
 }

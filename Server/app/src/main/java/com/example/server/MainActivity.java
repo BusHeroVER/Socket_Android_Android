@@ -4,9 +4,17 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
@@ -14,53 +22,52 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Enumeration;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
-    TextView info, infoip, msg;
-    String message = "";
-    ServerSocket serverSocket;
+    private TextView info;
+    private TextView infoip;
+    private TextView message;
+
+    private String text = "";
+
+    private ServerSocket serverSocket;
+    private replyThread replyThread;
+
+    Socket socket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Initialize();
+        setListeners();
+    }
+    public void Initialize(){
         info = (TextView) findViewById(R.id.info);
         infoip = (TextView) findViewById(R.id.infoip);
-        msg = (TextView) findViewById(R.id.msg);
-
+        message = (TextView) findViewById(R.id.msg);
         infoip.setText(getIpAddress());
+    }
 
+    public void setListeners(){
         Thread socketServerThread = new Thread(new SocketServerThread());
         socketServerThread.start();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
 
-        if (serverSocket != null) {
-            try {
-                serverSocket.close();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }
-    }
 
     private class SocketServerThread extends Thread {
 
         static final int SocketServerPORT = 9487;
-        int count = 0;
+
 
         @Override
         public void run() {
-            Socket socket = null;
-            DataInputStream dataInputStream = null;
-            DataOutputStream dataOutputStream = null;
 
             try {
                 serverSocket = new ServerSocket(SocketServerPORT);
+
                 MainActivity.this.runOnUiThread(new Runnable() {
 
                     @Override
@@ -72,31 +79,9 @@ public class MainActivity extends Activity {
 
                 while (true) {
                     socket = serverSocket.accept();
-                    dataInputStream = new DataInputStream(
-                            socket.getInputStream());
-                    dataOutputStream = new DataOutputStream(
-                            socket.getOutputStream());
 
-                    String messageFromClient = "";
-
-                    //If no message sent from client, this code will block the program
-                    messageFromClient = dataInputStream.readUTF();
-
-                    count++;
-                    message += "#" + count + " from " + socket.getInetAddress()
-                            + ":" + socket.getPort() + "\n"
-                            + "Message from client: " + messageFromClient + "\n";
-
-                    MainActivity.this.runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            msg.setText(message);
-                        }
-                    });
-
-                    String msgReply = "Hello from Client, you are #" + count;
-                    dataOutputStream.writeUTF(msgReply);
+                    replyThread = new replyThread(socket);
+                    replyThread.run();
 
                 }
             } catch (IOException e) {
@@ -107,40 +92,93 @@ public class MainActivity extends Activity {
 
                     @Override
                     public void run() {
-                        msg.setText(errMsg);
+                        message.setText(errMsg);
                     }
                 });
-
-            } finally {
-                if (socket != null) {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-
-                if (dataInputStream != null) {
-                    try {
-                        dataInputStream.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
-
-                if (dataOutputStream != null) {
-                    try {
-                        dataOutputStream.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
             }
         }
 
+    }
+
+    private class replyThread extends Thread {
+
+        private Socket mySocket;
+        private int count = 0;
+        private String messageFromClient = "";
+
+        replyThread(Socket socket) {mySocket = socket;}
+
+        @Override
+        public void run() {
+
+            try{
+                while(true){
+                    InputStream myInputSteam = mySocket.getInputStream();
+                    InputStreamReader myInputSteamReader = new InputStreamReader(myInputSteam) ;
+                    BufferedReader myBufferedReader = new BufferedReader(myInputSteamReader) ;
+
+                    messageFromClient = myBufferedReader.readLine();
+
+                    count++;
+                    text += "#" + count + " from : " + mySocket.getInetAddress()
+                            + " : " + mySocket.getPort() + "\n"
+                            + "Message from client : " + messageFromClient + ".\n";
+
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            message.setText(text);
+                        }
+                    });
+
+                    OutputStream myOutputSteam = mySocket.getOutputStream();
+                    OutputStreamWriter myOutputSteamWriter = new OutputStreamWriter(myOutputSteam);
+                    BufferedWriter myBufferedWriter = new BufferedWriter(myOutputSteamWriter);
+                    myBufferedWriter.write("Receive : " + messageFromClient + "\n");
+                    myBufferedWriter.flush();
+                }
+
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                final String errMsg = e.toString();
+                MainActivity.this.runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        message.setText(errMsg);
+                    }
+                });
+            } finally {
+                if (mySocket != null) {
+                    try {
+                        mySocket.close();
+                        serverSocket.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+
+//                if (dataInputStream != null) {
+//                    try {
+//                        dataInputStream.close();
+//                    } catch (IOException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//
+//                if (dataOutputStream != null) {
+//                    try {
+//                        dataOutputStream.close();
+//                    } catch (IOException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+            }
+        }
     }
 
     private String getIpAddress() {
@@ -158,19 +196,15 @@ public class MainActivity extends Activity {
 
                     if (inetAddress.isSiteLocalAddress()) {
                         ip = "IP : "
-                                + inetAddress.getHostAddress() + "\n";
+                                + inetAddress.getHostAddress();
                     }
-
                 }
-
             }
-
         } catch (SocketException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
             ip += "Something Wrong !" + e.toString() + "\n";
         }
-
         return ip;
     }
 }
