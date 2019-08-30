@@ -8,15 +8,24 @@
     android:orientation="vertical"
     android:padding="10dp">
 
+    <Button
+        android:id="@+id/close"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Close server"
+        android:textSize="18sp"
+        android:textAllCaps="false"/>
     <TextView
         android:id="@+id/infoip"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="ip"
         android:textSize="24sp"/>
     <TextView
         android:id="@+id/info"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="port"
         android:textSize="24sp" />
 
 

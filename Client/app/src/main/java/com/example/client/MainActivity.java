@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
         buttonConnect.setOnClickListener(socketConnect);
         buttonDisconnect.setOnClickListener(socketDisconnect);
 
-        buttonSend.setOnClickListener(sendData);//補
+        buttonSend.setOnClickListener(sendData);
     }
 
     private View.OnClickListener socketConnect = new View.OnClickListener() {
@@ -80,7 +80,7 @@ public class MainActivity extends Activity {
 
                 if (mySocket.isClosed()) {
                     state.setText("Unconnect.");
-                    myHandler.removeCallbacks(heartbeat);
+                    //myHandler.removeCallbacks(heartbeat);
                     myHandler.removeCallbacks(runReceiveData);
                 } else {
                     state.setText("Connect.");
@@ -112,13 +112,12 @@ public class MainActivity extends Activity {
                     modifyStatus("Connect.");
                     clearResponse();
 
-                    myHandler.postDelayed(heartbeat,1000);
+                    //myHandler.postDelayed(heartbeat,1000);
                     Thread myThreadReceive = new Thread(runReceiveData);
                     myThreadReceive.start();
                 }
             } catch (IOException e) {
                 modifyResponse("Connect error : " + e + ".\n");
-
             }
         }
     };
@@ -130,10 +129,15 @@ public class MainActivity extends Activity {
                 InputStream myInputSteam = mySocket.getInputStream();
                 InputStreamReader myInputSteamReader = new InputStreamReader(myInputSteam) ;
                 BufferedReader myBufferedReader = new BufferedReader(myInputSteamReader) ;
-
-                modifyResponse(myBufferedReader.readLine());
+                String s =  myBufferedReader.readLine();
+                if ( s == null) {
+                    modifyStatus("Unconnect");
+                    modifyResponse("Connect broken.");
+                    return;
+                }
+                modifyResponse(s);
             }catch (IOException e){
-                modifyResponse("Receive data error : "+ e +"\n");
+                //modifyResponse("Receive data error : "+ e +"\n");
             }
         }
     };

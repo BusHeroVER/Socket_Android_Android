@@ -2,6 +2,9 @@ package com.example.server;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,10 +33,15 @@ public class MainActivity extends AppCompatActivity {
 
     private String text = "";
 
+    private Button close;
+
     private ServerSocket serverSocket;
     private replyThread replyThread;
 
+    private boolean flag = false;
+
     Socket socket;
+    Handler myHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,30 +49,46 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Initialize();
-        setListeners();
+        threadStart();
     }
     public void Initialize(){
         info = (TextView) findViewById(R.id.info);
         infoip = (TextView) findViewById(R.id.infoip);
         message = (TextView) findViewById(R.id.msg);
+
+        close = (Button) findViewById(R.id.close);
+        close.setOnClickListener(serverClose);
+
         infoip.setText(getIpAddress());
     }
 
-    public void setListeners(){
+    private View.OnClickListener serverClose = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            if(!socket.isClosed()){
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                message.setText("Socket is closed.");
+            }
+        }
+    };
+
+    public void threadStart(){
+
         Thread socketServerThread = new Thread(new SocketServerThread());
         socketServerThread.start();
     }
-
-
 
     private class SocketServerThread extends Thread {
 
         static final int SocketServerPORT = 9487;
 
-
         @Override
         public void run() {
-
             try {
                 serverSocket = new ServerSocket(SocketServerPORT);
 
@@ -76,28 +100,26 @@ public class MainActivity extends AppCompatActivity {
                                 + serverSocket.getLocalPort());
                     }
                 });
-
                 while (true) {
                     socket = serverSocket.accept();
 
                     replyThread = new replyThread(socket);
                     replyThread.run();
-
                 }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
-                final String errMsg = e.toString();
                 MainActivity.this.runOnUiThread(new Runnable() {
 
                     @Override
                     public void run() {
-                        message.setText(errMsg);
+                        message.setText("Client is unconnected.");
                     }
                 });
             }
+            flag = true;
+            threadStart();
         }
-
     }
 
     private class replyThread extends Thread {
@@ -118,6 +140,8 @@ public class MainActivity extends AppCompatActivity {
                     BufferedReader myBufferedReader = new BufferedReader(myInputSteamReader) ;
 
                     messageFromClient = myBufferedReader.readLine();
+                    if(messageFromClient == null)
+                        break;
 
                     count++;
                     text += "#" + count + " from : " + mySocket.getInetAddress()
